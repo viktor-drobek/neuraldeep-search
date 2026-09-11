@@ -1,5 +1,4 @@
 ---
-author: kimi2.6 & qwen3.8 27b (published by viktor-drobek)
 name: neuraldeep-search
 description: >
   Global search skill powered by NeuralDeep Search API (api.neuraldeep.ru/v1/search/*).
