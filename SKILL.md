@@ -7,7 +7,6 @@ description: >
 metadata:
   neuraldeep:
     emoji: "🔍"
-    requires_file: "~/.coddy/providers/neuraldeep/neuraldeep-auth.json"
     base_url: "https://api.neuraldeep.ru/v1"
     endpoints:
       - /v1/search/web
@@ -29,36 +28,20 @@ Use this skill whenever the user needs:
 
 ## Requirements
 
-### Primary key source (Coddy-hosted)
-The key is read from the Coddy provider auth file:
-```bash
-~/.coddy/providers/neuraldeep/neuraldeep-auth.json
-```
-That JSON contains `api_key` (e.g. `sk-...`).
+Python 3.10+ is sufficient; the helper uses only the standard library.
+Run commands from this skill's directory. No `curl`, `jq`, or `httpx` is required.
 
-Extract it inline:
-```bash
-jq -r '.api_key' ~/.coddy/providers/neuraldeep/neuraldeep-auth.json
-```
+The helper first reads `api_key` from
+`${CODDY_HOME:-~/.coddy}/providers/neuraldeep/neuraldeep-auth.json`, then falls
+back to `NEURALDEEP_API_KEY` for missing, malformed, null, or empty file values.
+It never prints the key. If neither source works, it returns `blocked`; use
+`coddy providers login neuraldeep` or supply the environment variable securely.
+Do not use `jq -r .api_key` as a presence check: JSON null becomes the string `null`.
 
-### Fallback key source (env)
-If the file above is missing, read from the environment variable:
-```bash
-${NEURALDEEP_API_KEY}
-```
-
-### System requirement
-- The `curl` tool is available on the system.
-- The `jq` tool is available (or fallback to `python -m json.tool` / `node -e` / `grep -o`).
-
-## Resolve API key helper
-
-Before any call, compute the bearer token once:
-```bash
-ND_KEY=$(jq -r '.api_key' ~/.coddy/providers/neuraldeep/neuraldeep-auth.json 2>/dev/null)
-[ -z "$ND_KEY" ] && ND_KEY="${NEURALDEEP_API_KEY}"
-```
-If both are empty → return `BLOCKED` and suggest: `coddy providers login neuraldeep`.
+Read [Starter and Relay safety](STARTER_RELAY.md) before submitting work.
+Every billed operation must pass the helper's live subscription, public-price,
+and service-quota checks. A chat `decision.can_request=false` is not a service
+quota decision. State files and artifacts are private runtime data, not repo files.
 
 ## Base URL
 
@@ -72,36 +55,23 @@ https://api.neuraldeep.ru/v1
 
 Search the open web for fresh data, articles, docs, and news.
 
-### curl example
+### Guarded helper example
 ```bash
-ND_KEY=$(jq -r '.api_key' ~/.coddy/providers/neuraldeep/neuraldeep-auth.json 2>/dev/null || echo "${NEURALDEEP_API_KEY}")
-curl -sS "https://api.neuraldeep.ru/v1/search/web" \
-  -H "Authorization: Bearer ${ND_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "<search query>",
-    "limit": 5,
-    "include_snippets": true
-  }' | python3 -m json.tool
+printf '%s\n' '{"query":"public API documentation","limit":3}' > request.json
+python3 scripts/client.py run web --payload request.json --state web-state.json --output web-result.json
 ```
 
 ### Python example
 ```python
-import httpx, json, os, subprocess
-
-KEY = json.load(
-    open(os.path.expanduser("~/.coddy/providers/neuraldeep/neuraldeep-auth.json"))
-)["api_key"]
-
-r = httpx.post(
-    "https://api.neuraldeep.ru/v1/search/web",
-    headers={"Authorization": f"Bearer {KEY}"},
-    json={"query": "что нового в LLM?", "limit": 5},
-).json()
-for item in r.get("results", []):
-    print(item["title"], "—", item["url"])
-    print(item.get("content", "")[:200])
-print("remaining:", r.get("quota", {}).get("day", {}).get("remaining"))
+import json
+from pathlib import Path
+import subprocess
+Path("request.json").write_text(json.dumps({"query": "public API documentation", "limit": 3}))
+subprocess.run(["python3", "scripts/client.py", "run", "web", "--payload", "request.json",
+                "--state", "python-web-state.json", "--output", "web-result.json"], check=True)
+data = json.loads(Path("web-result.json").read_text())
+for item in data["results"]:
+    print(item.get("title"), item.get("url"))
 ```
 
 ### Parameters
@@ -110,7 +80,7 @@ print("remaining:", r.get("quota", {}).get("day", {}).get("remaining"))
 - `include_snippets` (boolean, optional) — include text snippets
 
 ### Response shape
-```json
+```text
 {
   "success": true,
   "results": [
@@ -129,34 +99,25 @@ print("remaining:", r.get("quota", {}).get("day", {}).get("remaining"))
 
 Search NeuralDeep's indexed Telegram channel database.
 
-### curl example
+### Guarded helper example
 ```bash
-ND_KEY=$(jq -r '.api_key' ~/.coddy/providers/neuraldeep/neuraldeep-auth.json 2>/dev/null || echo "${NEURALDEEP_API_KEY}")
-curl -sS "https://api.neuraldeep.ru/v1/search/tg?q=<query>&limit=5" \
-  -H "Authorization: Bearer ${ND_KEY}"
+printf '%s\n' '{"q":"public API documentation","limit":3}' > tg-request.json
+python3 scripts/client.py run tg --payload tg-request.json --state tg-state.json --output tg-result.json
 ```
 
 ### Python example
 ```python
-import httpx, json, os
-KEY = json.load(open(os.path.expanduser(
-    "~/.coddy/providers/neuraldeep/neuraldeep-auth.json"
-)))["api_key"]
-DATA = httpx.get(
-    "https://api.neuraldeep.ru/v1/search/tg",
-    params={"q": "RAG в проде", "limit": 5},
-    headers={"Authorization": f"Bearer {KEY}"},
-).json()
-for item in DATA.get("results", []):
-    print(item.get("channel"), "—", item.get("text", "")[:120], "→", item.get("message_url"))
+import subprocess
+subprocess.run(["python3", "scripts/client.py", "run", "tg", "--payload", "tg-request.json",
+                "--state", "python-tg-state.json", "--output", "tg-result.json"], check=True)
 ```
 
 ### Parameters (query string)
 - `q` (string, required) — search query
 - `limit` (integer, optional) — max results
 
-### Response shape (проверено)
-```json
+### Illustrative response shape
+```text
 {
   "results": [
     {"channel": "neuraldeep", "text": "...", "date": "...",
@@ -173,28 +134,17 @@ for item in DATA.get("results", []):
 
 Crawl a specific website to extract multiple pages.
 
-### curl example
+### Guarded helper example
 ```bash
-ND_KEY=$(jq -r '.api_key' ~/.coddy/providers/neuraldeep/neuraldeep-auth.json 2>/dev/null || echo "${NEURALDEEP_API_KEY}")
-curl -sS "https://api.neuraldeep.ru/v1/search/crawl" \
-  -H "Authorization: Bearer ${ND_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com", "limit": 3, "depth": 1}'
+printf '%s\n' '{"url":"https://example.com","limit":3}' > crawl-request.json
+python3 scripts/client.py run crawl --payload crawl-request.json --state crawl-state.json --output crawl-result.json
 ```
 
 ### Python example
 ```python
-import httpx, json, os
-KEY = json.load(open(os.path.expanduser(
-    "~/.coddy/providers/neuraldeep/neuraldeep-auth.json"
-)))["api_key"]
-DATA = httpx.post(
-    "https://api.neuraldeep.ru/v1/search/crawl",
-    headers={"Authorization": f"Bearer {KEY}"},
-    json={"url": "https://example.com", "limit": 3, "depth": 1},
-).json()
-for page in DATA.get("pages", []):
-    print(page["url"], page["title"])
+import subprocess
+subprocess.run(["python3", "scripts/client.py", "run", "crawl", "--payload", "crawl-request.json",
+                "--state", "python-crawl-state.json", "--output", "crawl-result.json"], check=True)
 ```
 
 ### Parameters
@@ -202,8 +152,8 @@ for page in DATA.get("pages", []):
 - `limit` (integer, optional) — max pages to fetch
 - `depth` (integer, optional) — crawl depth (default 1)
 
-### Response shape (проверено)
-```json
+### Illustrative response shape
+```text
 {
   "success": true,
   "pages": [
@@ -218,31 +168,28 @@ for page in DATA.get("pages", []):
 
 Check remaining search quota. Search and crawl have separate buckets.
 
-### curl example
+### Guarded helper example
 ```bash
-ND_KEY=$(jq -r '.api_key' ~/.coddy/providers/neuraldeep/neuraldeep-auth.json 2>/dev/null || echo "${NEURALDEEP_API_KEY}")
-curl -sS "https://api.neuraldeep.ru/v1/search/quota" \
-  -H "Authorization: Bearer ${ND_KEY}"
+python3 scripts/client.py check web
+python3 scripts/client.py check crawl
 ```
 
-### Response shape
-```json
-{
-  "tier": "starter",
-  "search": {"day": {"used": 0, "limit": 300, "remaining": 300, "reset_at": "..."}, "month": {...}},
-  "crawl": {"day": {"used": 0, "limit": 30, "remaining": 30, "reset_at": "..."}, "month": {...}}
-}
-```
+### Verified quota structure
+
+`GET /v1/search/quota` returns top-level `tier`, with separate `search` and
+`crawl` objects. Each has `mode: "tier"` and `day.remaining` / `month.remaining`.
+The helper requires both windows to cover the operation. Read live values;
+do not infer a budget from a pricing tier's advertised ceiling.
 
 ---
 
 ## Usage Workflow
 
 1. **Resolve the API key** using the helper above.
-2. **Check quota first** if multiple searches are planned:
+2. **Check quota before every billed operation** (the helper always does):
    ```bash
-   curl -sS "https://api.neuraldeep.ru/v1/search/quota" -H "Authorization: Bearer ${ND_KEY}"
-   ```
+python3 scripts/client.py check web
+```
 3. **Execute the appropriate endpoint** based on user intent:
    - General web facts → `v1/search/web`
    - Russian Telegram sources → `v1/search/tg`
@@ -253,7 +200,7 @@ curl -sS "https://api.neuraldeep.ru/v1/search/quota" \
 
 - `401 Unauthorized` — invalid/missing API key → run `coddy providers login neuraldeep`
 - `429 Too Many Requests` — quota exhausted → response includes `Retry-After`; wait or use fallback `v1/search/quota`
-- `503 Service Unavailable` — transient outage → retry once after 5 seconds
+- `503 Service Unavailable` — stop; do not retry a billed request automatically
 - `400 Bad Request` — malformed params → verify query encoding and JSON schema
 
 ## Cost & Limits
