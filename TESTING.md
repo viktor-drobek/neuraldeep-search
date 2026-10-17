@@ -100,3 +100,11 @@ targeted mutation of `client.py` in a scratch copy, which it caught. The images
 CI workflow (`.github/workflows/tests.yml`: offline suite and `--help` on Python
 3.10 and 3.x, with no credential in the environment) was copied unchanged; the
 suite is now **37 tests**.
+
+Ported from neuraldeep-whisper-1 (9fb4a33): `resume` of a hand-edited Search
+state (status `submitted`, `timed_out` or `poll_error`) crashed with an uncaught
+`UnboundLocalError` traceback, because polling was skipped and no result existed.
+A `SYNCHRONOUS` service set now blocks `resume` for Search up front with
+"Synchronous search has no resumable job endpoint" and a normal JSON envelope.
+`test_resume_of_edited_resumable_state_is_blocked_not_crashed` failed first for
+all three statuses; the suite is now **38 tests**.
