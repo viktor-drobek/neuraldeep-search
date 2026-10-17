@@ -44,6 +44,8 @@ as asynchronous jobs, including multipart processing rather than direct PNG POST
   Two Search-only `execute()` tests were later added here (24 total): request
   method/URL per operation, saved artifact, and `reconciliation_required` for
   error-shaped or wrong-shape Search responses.
+  A later failing-first regression (25 total) requires `request()` to close
+  the `HTTPError` response it catches instead of leaking it until GC.
 - `python3 -B scripts/client.py --help`: passed, with no network call.
 - `git diff --check`: passed.
 - Fenced Python examples parsed with `ast.parse`; Bash examples passed `bash -n`.
