@@ -39,8 +39,8 @@ as asynchronous jobs, including multipart processing rather than direct PNG POST
 
 ## Final results
 
-- `python3 -B -m unittest discover -s tests`: **39 tests passed** in this repo
-  (22 original plus 17 added in the notes below).
+- `python3 -B -m unittest discover -s tests`: **42 tests passed** in this repo
+  (22 original plus 20 added in the notes below).
   The identical shared suite passed in all four service repos (88 total).
   Two Search-only `execute()` tests were later added here (24 total): request
   method/URL per operation, saved artifact, and `reconciliation_required` for
@@ -127,3 +127,14 @@ is now **39 tests**.
 Added AGENTS.md with instructions for coding agents (Codex, Coddy and others):
 the shared-helper rule, the offline test commands, safety rules and the PR
 workflow. No code or test changed; the suite stays at **39 tests**.
+
+Ported from neuraldeep-speechcore (a9a8073) via neuraldeep-whisper-1 (eda8436):
+`resume` of a malformed state (not an object, non-string `status`, or non-list
+`errors`) now blocks with "State is not resumable" instead of crashing.
+`test_resume_of_malformed_state_is_blocked_not_crashed` (patched to SERVICE
+"speechcore", since Search refuses `resume` before reading state) failed first in
+all five subtests. Two whisper tests were copied verbatim from whisper-1 to cover
+the `SYNCHRONOUS` and `submission()` whisper changes; they pinned existing code, so
+each was checked by removing its change in a scratch copy, which it caught.
+`scripts/client.py` is identical to whisper-1's apart from `SERVICE`. The suite
+is now **42 tests**.
