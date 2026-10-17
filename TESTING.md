@@ -41,6 +41,9 @@ as asynchronous jobs, including multipart processing rather than direct PNG POST
 
 - `python3 -B -m unittest discover -s tests`: **22 tests passed** in this repo.
   The identical shared suite passed in all four service repos (88 total).
+  Two Search-only `execute()` tests were later added here (24 total): request
+  method/URL per operation, saved artifact, and `reconciliation_required` for
+  error-shaped or wrong-shape Search responses.
 - `python3 -B scripts/client.py --help`: passed, with no network call.
 - `git diff --check`: passed.
 - Fenced Python examples parsed with `ast.parse`; Bash examples passed `bash -n`.

@@ -100,6 +100,8 @@ class SafetyTests(unittest.TestCase):
                 client.request("POST", client.HUB + "/search/web", "secret-fixture", b"{}", opener=opener)
             self.assertNotIn("secret-fixture", str(raised.exception))
             self.assertEqual(opener.open.call_count, 1)
+            if isinstance(error, HTTPError):
+                error.close()
 
     def test_durable_state_and_duplicate_prevention(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -239,6 +241,49 @@ class SafetyTests(unittest.TestCase):
                     client.validate_result(service, (json.dumps(bad).encode(), "application/json"))
         with self.assertRaises(client.RequestError):
             client.validate_result("images", (b"not PNG", "image/png"))
+
+    def search_run(self, tmp, operation, payload, response):
+        args = self.args(tmp)
+        args.operation, args.payload = operation, str(Path(tmp)/"request.json")
+        Path(args.payload).write_text(json.dumps(payload))
+        with patch.object(client, "SERVICE", "search"), patch.object(client, "resolve_key", return_value="fixture"), patch.object(client, "preflight", return_value={}):
+            with patch.object(client, "request", return_value=response) as req:
+                result = client.execute(args)
+        self.assertEqual(req.call_count, 1)
+        return args, req.call_args, result
+
+    def test_search_operations_request_and_save_artifact(self):
+        cases = [("web", {"query": "q fixture", "limit": 3}, "results", "POST"),
+                 ("crawl", {"url": "https://example.com", "limit": 3}, "pages", "POST"),
+                 ("tg", {"q": "q fixture", "limit": 3}, "results", "GET")]
+        for operation, payload, field, method in cases:
+            with self.subTest(operation=operation), tempfile.TemporaryDirectory() as tmp:
+                response = {"success": True, field: [{"url": "https://example.com"}]}
+                args, call, result = self.search_run(tmp, operation, payload, response)
+                endpoint = client.HUB + "/search/" + operation
+                self.assertEqual(call.args[0], method)
+                if method == "GET":
+                    self.assertEqual(call.args[1], endpoint + "?q=q+fixture&limit=3")
+                    self.assertIsNone(call.args[3])
+                else:
+                    self.assertEqual(call.args[1], endpoint)
+                    self.assertEqual(json.loads(call.args[3]), payload)
+                self.assertEqual(result["status"], "completed")
+                self.assertIsNone(result["provider_job_id"])
+                self.assertEqual(json.loads(Path(args.output).read_text()), response)
+                self.assertEqual(result["artifacts"][0]["provenance"]["endpoint"], endpoint)
+
+    def test_search_error_or_wrong_shape_requires_reconciliation(self):
+        cases = [("web", {"success": False, "results": []}), ("web", {"error": "unavailable", "results": []}),
+                 ("web", {"pages": []}), ("crawl", {"results": []}), ("tg", {"results": None}), ("web", [])]
+        for operation, response in cases:
+            with self.subTest(operation=operation, response=response), tempfile.TemporaryDirectory() as tmp:
+                args, _, result = self.search_run(tmp, operation, {"query": "q fixture"}, response)
+                # A billed search may have been charged: never report it as retryable.
+                self.assertEqual(result["status"], "reconciliation_required")
+                self.assertEqual(result["artifacts"], [])
+                self.assertFalse(Path(args.output).exists())
+                self.assertIn("search", result["errors"][0].lower())
 
     def test_artifact_has_hash_and_provenance(self):
         with tempfile.TemporaryDirectory() as tmp:

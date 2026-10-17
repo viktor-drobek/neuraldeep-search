@@ -188,8 +188,8 @@ do not infer a budget from a pricing tier's advertised ceiling.
 1. **Resolve the API key** using the helper above.
 2. **Check quota before every billed operation** (the helper always does):
    ```bash
-python3 scripts/client.py check web
-```
+   python3 scripts/client.py check web
+   ```
 3. **Execute the appropriate endpoint** based on user intent:
    - General web facts → `v1/search/web`
    - Russian Telegram sources → `v1/search/tg`
