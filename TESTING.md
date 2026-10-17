@@ -108,3 +108,9 @@ A `SYNCHRONOUS` service set now blocks `resume` for Search up front with
 "Synchronous search has no resumable job endpoint" and a normal JSON envelope.
 `test_resume_of_edited_resumable_state_is_blocked_not_crashed` failed first for
 all three statuses; the suite is now **38 tests**.
+
+Crossreview follow-up: `test_resume_of_edited_resumable_state_is_blocked_not_crashed`
+now also asserts the saved state file is byte-for-byte unchanged. Without it, a
+guard moved inside `execute()`'s `try:` block passed all 38 tests while rewriting
+the hand-edited state to `blocked`; that mutant now fails for all three statuses.
+The suite stays at **38 tests**.
