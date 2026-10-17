@@ -89,7 +89,7 @@ for item in data["results"]:
   "total": 3,
   "query": "...",
   "cost": 15,
-  "quota": {"pool": "search", "day": {...}, "month": {...}}
+  "quota": {"pool": "search", "mode": "tier", "day": {...}, "month": {...}}
 }
 ```
 
@@ -117,14 +117,20 @@ subprocess.run(["python3", "scripts/client.py", "run", "tg", "--payload", "tg-re
 - `limit` (integer, optional) — max results
 
 ### Illustrative response shape
+Unlike web and crawl, the Telegram response has no `success` or `cost` field.
 ```text
 {
   "results": [
     {"channel": "neuraldeep", "text": "...", "date": "...",
      "message_url": "...", "message_id": 123, "views_count": 100,
-     "category": "...", "score": 0.9, "source": "tg"}
+     "forwards_count": 0, "replies_count": 0, "reactions": {},
+     "category": "...", "score": 0.9, "source": "...", "file_path": null}
   ],
-  "quota": {"pool": "search", "day": {...}, "month": {...}}
+  "total": 1,
+  "query": "...",
+  "search_type": "...",
+  "sources": ["..."],
+  "quota": {"pool": "search", "mode": "tier", "day": {...}, "month": {...}}
 }
 ```
 
@@ -158,7 +164,10 @@ subprocess.run(["python3", "scripts/client.py", "run", "crawl", "--payload", "cr
   "success": true,
   "pages": [
     {"url": "...", "title": "...", "content": "...", "char_count": 1234}
-  ]
+  ],
+  "total": 1,
+  "cost": 15,
+  "quota": {"pool": "crawl", "mode": "tier", "day": {...}, "month": {...}}
 }
 ```
 
@@ -207,7 +216,9 @@ do not infer a budget from a pricing tier's advertised ceiling.
 
 - Search API has its **own quota bucket**, separate from chat completions.
 - Rate limits and daily quotas depend on the NeuralDeep Hub tariff (starter, pro, etc).
-- Cost per request is returned in the `cost` field of successful responses.
+- Web and crawl responses include a `cost` field; Telegram responses do not. On a
+  Starter subscription each request takes one unit from the day and month buckets
+  in `quota`, whatever `cost` says.
 - Consult `v1/search/quota` before heavy batch operations.
 
 ## Privacy & Security
