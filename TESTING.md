@@ -39,7 +39,8 @@ as asynchronous jobs, including multipart processing rather than direct PNG POST
 
 ## Final results
 
-- `python3 -B -m unittest discover -s tests`: **22 tests passed** in this repo.
+- `python3 -B -m unittest discover -s tests`: **39 tests passed** in this repo
+  (22 original plus 17 added in the notes below).
   The identical shared suite passed in all four service repos (88 total).
   Two Search-only `execute()` tests were later added here (24 total): request
   method/URL per operation, saved artifact, and `reconciliation_required` for
@@ -122,3 +123,7 @@ endpoint. `test_whisper_is_blocked_without_verified_quota` failed first (the
 guard reported an unrecognized schema); `scripts/client.py` is now identical to
 whisper-1's apart from `SERVICE`, and Search behaviour is unchanged. The suite
 is now **39 tests**.
+
+Added AGENTS.md with instructions for coding agents (Codex, Coddy and others):
+the shared-helper rule, the offline test commands, safety rules and the PR
+workflow. No code or test changed; the suite stays at **39 tests**.
