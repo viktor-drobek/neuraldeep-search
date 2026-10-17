@@ -1,6 +1,7 @@
 # Test-first verification
 
 No billed endpoint was called during development or verification. Publication is separate from these test results.
+A later, user-requested live smoke test is recorded at the end of this file.
 
 ## Red/green sequence
 
@@ -138,3 +139,19 @@ the `SYNCHRONOUS` and `submission()` whisper changes; they pinned existing code,
 each was checked by removing its change in a scratch copy, which it caught.
 `scripts/client.py` is identical to whisper-1's apart from `SERVICE`. The suite
 is now **42 tests**.
+
+## Live smoke test (2026-10-17)
+
+At the user's request, the helper at `2bd7aa2` was run once against the live API.
+Read-only `check web`, `check tg` and `check crawl` all returned `ready`. Then one
+minimal billed request each (`limit` 1, a neutral public query, `https://example.com`
+for crawl) returned `completed`. Each artifact's SHA-256 matched its envelope, the
+state equalled the envelope, and the state and result files were created mode 0600.
+Each request took exactly one unit from its subscription bucket (web and tg from
+`search`, crawl from `crawl`). For web and crawl that held even though the response
+reported `cost: 15`. Live refusals behaved as tested: a second `run` with the same
+state path blocked with "State file already exists" before any request, and
+`resume` blocked with "Synchronous search has no resumable job endpoint".
+The Telegram response has no `success` or `cost` field and adds `search_type` and
+`sources`, so SKILL.md's illustrative shapes were updated. No account values,
+queries' results or runtime files were saved in this repository.
