@@ -210,12 +210,37 @@ do not infer a budget from a pricing tier's advertised ceiling.
    - Deep dive into a specific site → `v1/search/crawl`
 4. **Parse JSON** and present results concisely with source URLs.
 
-## Error Handling
+## Error handling
 
-- `401 Unauthorized` — invalid/missing API key → check the key in `NEURALDEEP_SEARCH_API_KEY`
-- `429 Too Many Requests` — quota exhausted → response includes `Retry-After`; wait or use fallback `v1/search/quota`
-- `503 Service Unavailable` — stop; do not retry a billed request automatically
-- `400 Bad Request` — malformed params → verify query encoding and JSON schema
+The helper explains an HTTP error with a fixed text for its status, never the
+provider's response body, and adds `Retry-After` (whole seconds) and `X-Window`
+(`session` or `week`) when the provider sends well-formed values, for example
+`HTTP 429 (quota or rate limit reached); retry after 30 s; window week; no
+automatic retry`. It never retries by itself. What a failure means depends on
+when it happens:
+
+- during the preflight GETs, before anything is billed: `blocked`;
+- on the billed submission: `reconciliation_required`, since the work may have
+  been charged; reconcile with the provider's records, never submit blindly again;
+- while polling an existing job: `poll_error`; resume the same job later.
+
+| Code | What the provider documents | What to do |
+|---|---|---|
+| `400` | Invalid request body, or a request longer than allowed | Fix the input; a billed submission is reconciled first |
+| `401` | Key invalid or revoked, or not subscribed to the model | Check the key in `NEURALDEEP_SEARCH_API_KEY` (or `NEURALDEEP_API_KEY`) in `~/.coddy/.env` |
+| `408` | Upstream timeout after the provider's own retries | Reconcile a submission; resume a job |
+| `422` | A parameter outside the allowed values | Fix the parameter |
+| `429` | A quota or rate limit; `X-Window` names the session or week window and `Retry-After` the wait | Check the quota with `check`; wait, then decide explicitly |
+| `500` | Internal error; the provider suggests repeating | Reconcile a submission before any new one; resume a job |
+| `502` | Upstream unavailable; usually passes on its own | Reconcile or resume as above |
+| `503` | Temporarily unavailable, with `Retry-After` | Wait; reconcile or resume as above |
+
+Any other status is reported as `HTTP <code>` without a hint. A transport
+failure or an unreadable answer is `Transport or response error`, with the same
+outcomes.
+
+- `400` usually means malformed parameters: verify the query encoding and the JSON payload.
+- `check web` (or `tg`, `crawl`) reads `GET /v1/search/quota` to see the remaining search and crawl buckets.
 
 ## Cost & Limits
 
