@@ -184,3 +184,21 @@ state path blocked with "State file already exists" before any request, and
 The Telegram response has no `success` or `cost` field and adds `search_type` and
 `sources`, so SKILL.md's illustrative shapes were updated. No account values,
 queries' results or runtime files were saved in this repository.
+
+## Agent rule surfaces
+
+Added `tests/test_agent_rules.py` (10 tests) before any rule file existed; all
+10 failed because `.codex/hooks/attach_rules.py`, the rules and `CLAUDE.md` were
+missing. Then added Cursor rules (`.cursor/rules/*.mdc`), their Claude Code
+mirrors with identical bodies (`.claude/rules/*.md`), the Codex hook that attaches
+the Cursor rules (`.codex/hooks.json`, `.codex/hooks/attach_rules.py`),
+`CLAUDE.md` as a symlink to `AGENTS.md`, and the Delivery workflow and Rules Sync
+sections in `AGENTS.md`. The tests check the pairing and scope mapping, that
+every glob matches a file, and the hook itself: always-on rules at session start,
+the client rule once per session for patch add, update, delete and rename and for
+`Edit` and `Write`, and fail-open on bad input. Eight mutations (a widened or
+narrowed scope, `paths` differing from `globs`, body drift, a missing mirror, a
+dead glob, `.codex/rules.md`, a copied `CLAUDE.md`) each failed a test. The test
+file and `.codex/hooks/` are identical across the neuraldeep-* repositories.
+**58 tests passed**, both normally and with `LC_ALL=C PYTHONUTF8=0`, with no
+`EncodingWarning` under `-X warn_default_encoding`.
