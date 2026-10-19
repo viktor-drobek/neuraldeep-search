@@ -5,7 +5,7 @@ description: >
   Enables web search, Telegram channel search, site crawling, and quota checks.
   Automatically activates when user asks for search, research, fresh data, or current events.
 metadata:
-  version: 1.0.0
+  version: 2.0.0
   neuraldeep:
     emoji: "🔍"
     base_url: "https://api.neuraldeep.ru/v1"
