@@ -210,6 +210,38 @@ do not infer a budget from a pricing tier's advertised ceiling.
    - Deep dive into a specific site → `v1/search/crawl`
 4. **Parse JSON** and present results concisely with source URLs.
 
+## Paying from the wallet
+
+A NeuralDeep key pays either from a subscription or from the rouble wallet, never
+both (the mode is switched per key at <https://hub.neuraldeep.ru/app/keys>). In
+wallet mode the subscription quota does not apply and every operation costs money
+at the public price list. The helper therefore:
+
+- prefers a subscription key: with several keys, a wallet key is considered only
+  when no subscription key passes its quota check;
+- never spends from the wallet on its own. `check` and `run` end with the status
+  `wallet_approval_required`, the price, the estimated cost (the quota units times
+  the price, rounded up to whole kopecks) and the wallet balance, for example:
+
+  ```text
+  Key 1 of NEURALDEEP_API_KEY pays from the wallet, not a subscription: about 2.00 RUB
+  (1 x 2 RUB for search:web), wallet balance 370.05 RUB. Ask the user whether to pay;
+  only after a clear yes, run again with --wallet-limit 2.00
+  ```
+- pays only with `--wallet-limit RUB`, the roubles the user approved for this run,
+  and blocks before any request when the estimate exceeds that limit, the wallet
+  balance, or the key's own spending cap.
+
+**Show the warning to the user and wait for an explicit yes to that amount.**
+Never pass `--wallet-limit` on your own, never raise an approved amount, and treat
+a "no" or no answer as the end of the task. After a yes, run the same command as `run` with `--wallet-limit` set to the approved amount.
+The estimate uses the public price list and the same units as the quota; the
+provider may round or count differently, so it is an estimate, not an invoice.
+
+```bash
+python3 scripts/client.py check web
+```
+
 ## Error handling
 
 The helper explains an HTTP error with a fixed text for its status, never the

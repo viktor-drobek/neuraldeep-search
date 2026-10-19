@@ -57,6 +57,8 @@ env -u NEURALDEEP_API_KEY -u NEURALDEEP_SEARCH_API_KEY CODDY_HOME=/nonexistent p
 
 ## Safety rules
 
+- Never pass `--wallet-limit` without the user's explicit approval of that amount: a wallet
+  key spends money. `wallet_approval_required` is a question for the user, not an error to fix.
 - Never run `run` against the live API while developing or testing: every Search operation,
   including the `tg` GET, spends quota. `check` is read-only, but run it only when the user asks.
 - Search queries and crawl URLs leave the machine. Never send repository content, secrets or
