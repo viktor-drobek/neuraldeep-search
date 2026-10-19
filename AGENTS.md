@@ -18,7 +18,7 @@ endpoint").
 ## The shared helper
 
 `scripts/client.py` is shared by every neuraldeep-* repo (search, images, ocr, speechcore,
-transcriptions) and must stay identical across them except for the `SERVICE = "..."` line. Port a
+transcriptions, diarization) and must stay identical across them except for the `SERVICE = "..."` line. Port a
 change to every sibling repo, each through its own PR. Check a port against a sibling checkout:
 
 ```bash
@@ -33,17 +33,17 @@ Tests are offline: HTTP is mocked and no billed endpoint is called. Run them wit
 blanked so a real key can never be read:
 
 ```bash
-env -u NEURALDEEP_API_KEY CODDY_HOME=/nonexistent python3 -B -m unittest discover -s tests
+env -u NEURALDEEP_API_KEY -u NEURALDEEP_SEARCH_API_KEY CODDY_HOME=/nonexistent python3 -B -m unittest discover -s tests
 ```
 
 Before opening a PR, also run the suite under a non-UTF-8 locale and with encoding warnings on:
 
 ```bash
-env -u NEURALDEEP_API_KEY CODDY_HOME=/nonexistent LC_ALL=C PYTHONUTF8=0 python3 -B -m unittest discover -s tests
+env -u NEURALDEEP_API_KEY -u NEURALDEEP_SEARCH_API_KEY CODDY_HOME=/nonexistent LC_ALL=C PYTHONUTF8=0 python3 -B -m unittest discover -s tests
 ```
 
 ```bash
-env -u NEURALDEEP_API_KEY CODDY_HOME=/nonexistent python3 -X warn_default_encoding -B -m unittest discover -s tests
+env -u NEURALDEEP_API_KEY -u NEURALDEEP_SEARCH_API_KEY CODDY_HOME=/nonexistent python3 -X warn_default_encoding -B -m unittest discover -s tests
 ```
 
 - Work test-first: add the regression test, watch it fail, then fix. Say so in the commit.
@@ -57,6 +57,8 @@ env -u NEURALDEEP_API_KEY CODDY_HOME=/nonexistent python3 -X warn_default_encodi
 
 ## Safety rules
 
+- Never pass `--wallet-limit` without the user's explicit approval of that amount: a wallet
+  key spends money. `wallet_approval_required` is a question for the user, not an error to fix.
 - Never run `run` against the live API while developing or testing: every Search operation,
   including the `tg` GET, spends quota. `check` is read-only, but run it only when the user asks.
 - Search queries and crawl URLs leave the machine. Never send repository content, secrets or
@@ -125,13 +127,15 @@ it must equal the tag without the `v`:
 
 - Codex reads this file automatically. Its default sandbox blocks network access and writes
   outside the workspace, which is all the offline tests need.
-- A live `check` needs the network and reads the key from `~/.coddy`, outside the workspace. Ask
+- A live `check` needs the network and reads the key from the environment or
+  `${CODDY_HOME:-~/.coddy}/.env`, outside the workspace. Ask
   the user before requesting broader sandbox access; never widen it to spend quota.
 
 ## Coddy
 
-- The skill reads the key from `${CODDY_HOME:-~/.coddy}/providers/neuraldeep/neuraldeep-auth.json`
-  (field `api_key`), then falls back to `NEURALDEEP_API_KEY`. Sign in with
-  `coddy providers login neuraldeep`; never ask the user to paste a key into the chat.
+- The skill reads its own `NEURALDEEP_SEARCH_API_KEY`, then the shared `NEURALDEEP_API_KEY`, each from the
+  environment, then from `${CODDY_HOME:-~/.coddy}/.env` (several keys separated by commas;
+  the first that passes the free checks is used). It does not read the Coddy provider file.
+  Ask the user to add a missing key to `${CODDY_HOME:-~/.coddy}/.env`; never ask for a key in the chat.
 - Run skill commands from the skill directory, and keep state files and results in a private
   directory outside the checkout.
